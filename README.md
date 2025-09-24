@@ -28,6 +28,7 @@ NeuroLens/
 │       ├── image_1.png to image_16.png
 │       ├── entry_1.png
 │       └── button_1.png
+|___Sensor.py
 └── README.md              # This file
 ```
 
@@ -300,4 +301,5 @@ pip install cx_Freeze
 ```
 
 ---
+
 
