@@ -12,7 +12,8 @@ if IS_RASPBERRY_PI:
         print("Running on Raspberry Pi - using real GPIO")
     except ImportError:
         IS_RASPBERRY_PI = False
-        print("RPi.GPIO not available - using simulation mode")
+        GPIO = None  # Add this line to avoid NameError if GPIO is referenced later
+        print("RPi.GPIO not available - using simulation mode. Please install it with 'pip install RPi.GPIO' if running on Raspberry Pi.")
 else:
     print("Running on Windows/other - using simulation mode")
 
