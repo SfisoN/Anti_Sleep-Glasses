@@ -2,7 +2,7 @@ import tkinter as tk
 from Pages.DashBoard import Dashboard
 from Pages.Alerts import Alerts
 from Pages.Help import Help
-from TkinterApp2.TkinterApp.sensor_monitor import SensorMonitor
+from sensor_monitor import SensorMonitor
 
 class NeuroLensApp:
     def __init__(self):
