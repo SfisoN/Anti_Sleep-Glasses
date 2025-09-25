@@ -38,12 +38,13 @@ class Dashboard(tk.Frame):
         self.logout_count = 0
         
         # Accuracy tracking
-        self.alert_accuracy = 87  # Start with 87%
-        self.accuracy_history = [85, 86, 87]  # Historical accuracy data
+        self.alert_accuracy = 87
+        self.accuracy_history = [85, 86, 87]
         
-        # Activity notifications
+        # Activity notifications - LESS FREQUENT
         self.notifications = []
         self.unread_count = 0
+        self.last_notification_time = 0
         
         # Canvas
         self.canvas = Canvas(
@@ -66,13 +67,13 @@ class Dashboard(tk.Frame):
         # Add entry field
         self.add_entry_field()
         
-        # Add enhanced charts
-        self.add_enhanced_pie_chart()
-        self.add_accuracy_line_chart()
-        self.add_battery_health_chart()
+        # Add properly sized charts
+        self.add_proper_sized_pie_chart()
+        self.add_battery_gauge()
+        self.add_performance_meter()
         
-        # Make View All clickable
-        self.add_view_all_button()
+        # Make View All clickable - SINGLE BUTTON ONLY
+        self.add_single_view_all_button()
         
         # Start live updates
         self.start_live_updates()
@@ -80,51 +81,59 @@ class Dashboard(tk.Frame):
     def update_status(self, message):
         """Called by sensor monitor to update status"""
         self.status_message = message
-        self.add_notification(f"Sensor status: {message}")
+        
+        # Only add notification every 30 seconds to avoid spam
+        current_time = datetime.now().timestamp()
+        if current_time - self.last_notification_time > 30:
+            self.add_notification(f"System: {message}")
+            self.last_notification_time = current_time
+        
         print(f"Status: {message}")
 
     def add_notification(self, message):
-        """Add a new notification to recent activity"""
+        """Add a new notification to recent activity - LESS FREQUENT"""
         timestamp = datetime.now().strftime("%H:%M")
         notification = {
             "message": message,
             "time": timestamp,
             "read": False
         }
-        self.notifications.insert(0, notification)  # Add to beginning
+        self.notifications.insert(0, notification)
         self.unread_count += 1
         
-        # Keep only last 10 notifications
-        if len(self.notifications) > 10:
-            self.notifications = self.notifications[:10]
+        # Keep only last 5 notifications
+        if len(self.notifications) > 5:
+            self.notifications = self.notifications[:5]
 
     def start_live_updates(self):
-        """Update dashboard every 2 seconds"""
+        """Update dashboard every 3 seconds - LESS FREQUENT"""
         try:
-            # Get fresh data from sensors
             old_drowsiness = self.drowsiness_level
             old_battery = self.battery_percentage
             
             self.drowsiness_level = self.sensor_monitor.get_drowsiness_level()
             self.battery_percentage = self.sensor_monitor.get_battery_level()
             
-            # Update notifications when drowsiness changes
-            if old_drowsiness != self.drowsiness_level:
-                self.add_notification(f"Drowsiness level: {self.drowsiness_level} at {datetime.now().strftime('%H:%M')}")
-                
-            # Update accuracy (simulate changes)
-            self.alert_accuracy += random.randint(-2, 3)
-            self.alert_accuracy = max(70, min(100, self.alert_accuracy))  # Keep between 70-100%
-            self.accuracy_history.append(self.alert_accuracy)
-            if len(self.accuracy_history) > 10:
-                self.accuracy_history = self.accuracy_history[-10:]
+            # Only notify on SIGNIFICANT changes
+            if old_drowsiness != self.drowsiness_level and self.drowsiness_level in ["Drowsy", "Tired"]:
+                self.add_notification(f"Alert: {self.drowsiness_level} detected at {datetime.now().strftime('%H:%M')}")
             
-            # Check for new alerts from sensor
+            # Update session count properly
+            self.logout_count = getattr(self.controller, 'session_count', 0)
+            
+            # Update accuracy occasionally
+            if random.randint(1, 10) == 1:
+                self.alert_accuracy += random.randint(-1, 2)
+                self.alert_accuracy = max(75, min(99, self.alert_accuracy))
+                self.accuracy_history.append(self.alert_accuracy)
+                if len(self.accuracy_history) > 8:
+                    self.accuracy_history = self.accuracy_history[-8:]
+            
+            # Check for alerts from sensor - LESS FREQUENT
             new_alerts = self.sensor_monitor.get_new_alerts()
             if new_alerts:
                 for alert in new_alerts:
                     self.add_notification(f"ALERT: {alert['condition']}")
-                    # Add to controller's alerts page if it exists
                     if hasattr(self.controller, 'pages') and 'Alerts' in self.controller.pages:
                         alerts_page = self.controller.pages['Alerts']
                         if hasattr(alerts_page, 'add_live_alert'):
@@ -136,39 +145,38 @@ class Dashboard(tk.Frame):
         except Exception as e:
             print(f"Update error: {e}")
         
-        # Schedule next update
-        self.after(2000, self.start_live_updates)
+        # Schedule next update - 3 seconds instead of 2
+        self.after(4000, self.start_live_updates)
     
     def refresh_dynamic_content(self):
         """Refresh the dynamic parts of the display"""
-        # Clear and redraw dynamic text elements
         self.canvas.delete("dynamic")
         
-        # Drowsiness level with color coding
+        # Drowsiness level with color coding - SAME POSITION AS BEFORE
         color = self.get_drowsiness_color()
         self.canvas.create_text(337.0, 178.0, anchor="nw", text=self.drowsiness_level, 
                                fill=color, font=("Arial", 14, "bold"), tags="dynamic")
         
-        # Battery percentage
+        # Battery percentage - SAME POSITION AS BEFORE
         self.canvas.create_text(697.0, 221.0, anchor="nw", text=f"{self.battery_percentage}%", 
                                fill="#FFFFFF", font=("Arial", 16), tags="dynamic")
         
         # Alert accuracy percentage
         self.canvas.create_text(930.0, 400.0, anchor="nw", text=f"{self.alert_accuracy}%",
-                               fill="#000000", font=("Arial", 16, "bold"), tags="dynamic")
+                               fill="#000000", font=("Arial", 14, "bold"), tags="dynamic")
         
         # Battery health in stats
         self.canvas.create_text(1065.0, 392.0, anchor="nw", text=f"{self.battery_percentage}%",
-                               fill="#000000", font=("Arial", 16, "bold"), tags="dynamic")
+                               fill="#000000", font=("Arial", 14, "bold"), tags="dynamic")
         
-        # Life Stats section
-        spatial_level = random.randint(85, 98)  # Simulate spatial awareness
+        # Life Stats section - SMALLER FONT
+        spatial_level = random.randint(88, 95)
         self.canvas.create_text(248.0 + 5, 622.0, anchor="nw", text=f"{spatial_level}%", 
-                               fill="#FFFFFF", font=("Arial", 16, "bold"), tags="dynamic")
+                               fill="#FFFFFF", font=("Arial", 12, "bold"), tags="dynamic")
         self.canvas.create_text(471.0 + 5, 620.0, anchor="nw", text=f"{self.alert_accuracy}%", 
-                               fill="#FFFFFF", font=("Arial", 16, "bold"), tags="dynamic")
+                               fill="#FFFFFF", font=("Arial", 12, "bold"), tags="dynamic")
         self.canvas.create_text(692.0 + 5, 624.0, anchor="nw", text=f"{self.logout_count}", 
-                               fill="#FFFFFF", font=("Arial", 16, "bold"), tags="dynamic")
+                               fill="#FFFFFF", font=("Arial", 12, "bold"), tags="dynamic")
         
         # Update recent activity notifications
         self.update_notifications_display()
@@ -176,11 +184,11 @@ class Dashboard(tk.Frame):
     def get_drowsiness_color(self):
         """Get color based on drowsiness level"""
         colors = {
-            "Alert": "#00FF00",      # Green - good
-            "Awake": "#FFFF00",      # Yellow - caution  
-            "Drowsy": "#FF0000",     # Red - danger
-            "Tired": "#FFA500",      # Orange - warning
-            "Eyes Closed": "#FF4500" # Orange-red - immediate attention
+            "Alert": "#00FF00",
+            "Awake": "#FFFF00",
+            "Drowsy": "#FF0000",
+            "Tired": "#FFA500",
+            "Eyes Closed": "#FF4500"
         }
         return colors.get(self.drowsiness_level, "#FFFFFF")
     
@@ -188,33 +196,26 @@ class Dashboard(tk.Frame):
         """Update the notifications in recent activity"""
         self.canvas.delete("notifications")
         
-        # Show up to 4 most recent notifications
-        for i, notification in enumerate(self.notifications[:4]):
+        # Show up to 3 most recent notifications
+        for i, notification in enumerate(self.notifications[:3]):
             y_pos = 403.0 + (i * 20)
-            text_color = "#000000" if notification["read"] else "#1657FF"  # Blue if unread
+            text_color = "#000000" if notification["read"] else "#1657FF"
             notification_text = f"{notification['message']} ({notification['time']})"
             
             self.canvas.create_text(248.0, y_pos, anchor="nw", text=notification_text,
                                    fill=text_color, font=("Arial", 10), tags="notifications")
             
-            # Unread indicator
             if not notification["read"]:
                 self.canvas.create_text(707.0, y_pos, anchor="nw", text="New", 
                                        fill="#FF0101", font=("Arial", 9), tags="notifications")
         
-        # Update unread count in View All button area
-        if self.unread_count > 0:
-            self.canvas.create_text(800.0, 336.0, anchor="nw", text=f"({self.unread_count} new)", 
-                                   fill="#FF0101", font=("Arial", 9), tags="notifications")
-        
     def load_images(self):
-        """Load and place all images"""
+        """Load and place all images - SAME AS BEFORE"""
         try:
-            # Sidebar icon
+            # All the same image loading code as before
             self.image_1 = PhotoImage(file=relative_to_assets("image_1.png"))
             self.canvas.create_image(98.0, 349.0, image=self.image_1)
             
-            # Navigation icons
             self.image_2 = PhotoImage(file=relative_to_assets("image_2.png"))
             self.canvas.create_image(27.0, 213.0, image=self.image_2)
             
@@ -230,7 +231,6 @@ class Dashboard(tk.Frame):
             self.image_6 = PhotoImage(file=relative_to_assets("image_6.png"))
             self.canvas.create_image(26.0, 456.0, image=self.image_6)
             
-            # Top bar icons
             self.image_7 = PhotoImage(file=relative_to_assets("image_7.png"))
             self.canvas.create_image(722.0, 26.0, image=self.image_7)
             
@@ -243,14 +243,12 @@ class Dashboard(tk.Frame):
             self.image_10 = PhotoImage(file=relative_to_assets("image_10.png"))
             self.canvas.create_image(930.0, 27.0, image=self.image_10)
             
-            # Breadcrumb icons
             self.image_11 = PhotoImage(file=relative_to_assets("image_11.png"))
             self.canvas.create_image(243.0, 33.0, image=self.image_11)
             
             self.image_12 = PhotoImage(file=relative_to_assets("image_12.png"))
             self.canvas.create_image(275.0, 33.0, image=self.image_12)
             
-            # Dashboard content images
             self.image_13 = PhotoImage(file=relative_to_assets("image_13.png"))
             self.canvas.create_image(372.0, 181.0, image=self.image_13)
             
@@ -263,7 +261,6 @@ class Dashboard(tk.Frame):
             self.image_16 = PhotoImage(file=relative_to_assets("image_16.png"))
             self.canvas.create_image(722.0, 187.0, image=self.image_16)
             
-            # Activity summary
             self.image_17 = PhotoImage(file=relative_to_assets("image_17.png"))
             self.canvas.create_image(538.0, 427.0, image=self.image_17)
             
@@ -286,7 +283,7 @@ class Dashboard(tk.Frame):
             print(f"Error loading images: {e}")
     
     def add_text_elements(self):
-        """Add all static text elements to the canvas"""
+        """Add all static text elements"""
         # App title
         self.canvas.create_text(54.0, 8.0, anchor="nw", text="NeuroLens", 
                                fill="#2C2745", font=("Arial", 18, "bold"))
@@ -313,7 +310,7 @@ class Dashboard(tk.Frame):
                                fill="#FFFFFF", font=("Arial", 16, "bold"))
         
         # Recent Activity
-        self.canvas.create_text(236.0, 287.0, anchor="nw", text="Recent Activity Notifications", 
+        self.canvas.create_text(236.0, 287.0, anchor="nw", text="Recent Activity Summary", 
                                fill="#353E6C", font=("Arial", 14, "bold"))
         self.canvas.create_text(281.0, 344.0, anchor="nw", text="NeuroLens User", 
                                fill="#000000", font=("Arial", 11))
@@ -337,7 +334,7 @@ class Dashboard(tk.Frame):
         self.canvas.create_text(1076.0, 358.0, anchor="nw", text="Battery Health", 
                                fill="#000000", font=("Arial", 10))
         
-        self.canvas.create_text(960.0, 506.0, anchor="nw", text="System Performance", 
+        self.canvas.create_text(960.0, 506.0, anchor="nw", text="System Status", 
                                fill="#000000", font=("Arial", 10))
         
         # Life Stats section
@@ -377,8 +374,8 @@ class Dashboard(tk.Frame):
         except Exception as e:
             print(f"Error creating entry field: {e}")
     
-    def add_enhanced_pie_chart(self):
-        """Add larger, more appealing pie chart"""
+    def add_proper_sized_pie_chart(self):
+        """Add pie chart that fits properly in background"""
         try:
             # Dynamic data based on current sensor readings
             if self.drowsiness_level == "Alert":
@@ -392,155 +389,148 @@ class Dashboard(tk.Frame):
                 
             labels = ['Drowsy', 'Alert', 'Tired', 'Other']
             colors = ['#FF4444', '#44FF44', '#FFAA44', '#4444FF']
-            explode = (0.05, 0.05, 0.05, 0.05)  # Slightly separate slices
             
-            # Create larger matplotlib figure
-            fig, ax = plt.subplots(figsize=(2.2, 2.2))
-            wedges, texts, autotexts = ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', 
-                                            startangle=90, textprops={'fontsize': 7}, explode=explode,
-                                            shadow=True)
-            
-            # Make percentage text bold and white
-            for autotext in autotexts:
-                autotext.set_color('white')
-                autotext.set_fontweight('bold')
+            # SMALLER SIZE to fit background
+            fig, ax = plt.subplots(figsize=(1.6, 1.6))
+            ax.pie(sizes, labels=labels, colors=colors, autopct='%1.0f%%', 
+                   startangle=90, textprops={'fontsize': 6})
             
             ax.axis('equal')
             fig.patch.set_facecolor('none')
             ax.set_facecolor('none')
             
-            # Embed in tkinter
+            # Position to fit in background
             chart_canvas = FigureCanvasTkAgg(fig, self)
             chart_canvas.draw()
-            chart_canvas.get_tk_widget().place(x=980, y=130, width=180, height=180)
+            chart_canvas.get_tk_widget().place(x=1000, y=140, width=130, height=130)
             
         except Exception as e:
-            print(f"Error creating enhanced pie chart: {e}")
-            self.canvas.create_text(1070, 200, text="Enhanced Chart\nLoading...", 
-                                   fill="#666", font=("Arial", 8), justify="center")
+            print(f"Error creating pie chart: {e}")
     
-    def add_accuracy_line_chart(self):
-        """Add dynamic line graph for alert accuracy"""
+    def add_battery_gauge(self):
+        """Add simple battery gauge instead of line chart"""
         try:
-            # Time points for x-axis
-            time_points = list(range(len(self.accuracy_history)))
+            # Create a simple gauge-style display
+            fig, ax = plt.subplots(figsize=(1.4, 1.0))
             
-            # Create line chart
-            fig, ax = plt.subplots(figsize=(2.0, 1.4))
-            ax.plot(time_points, self.accuracy_history, marker='o', linewidth=2, 
-                   color='#1657FF', markersize=4, markerfacecolor='#FF6B6B')
-            ax.set_ylabel('Accuracy %', fontsize=8)
-            ax.set_ylim(70, 100)
-            ax.grid(True, alpha=0.3)
-            ax.tick_params(axis='both', which='major', labelsize=7)
+            # Battery level bar
+            battery_color = '#44FF44' if self.battery_percentage > 50 else '#FFAA44' if self.battery_percentage > 20 else '#FF4444'
+            ax.barh(0, self.battery_percentage, height=0.3, color=battery_color, alpha=0.8)
+            ax.barh(0, 100, height=0.3, color='lightgray', alpha=0.3)
+            
+            ax.set_xlim(0, 100)
+            ax.set_ylim(-0.5, 0.5)
+            ax.set_xticks([0, 25, 50, 75, 100])
+            ax.set_xticklabels(['0%', '25%', '50%', '75%', '100%'], fontsize=6)
+            ax.set_yticks([])
+            
             fig.patch.set_facecolor('none')
             ax.set_facecolor('none')
             
-            # Embed in tkinter
+            # Position to fit in background
             chart_canvas = FigureCanvasTkAgg(fig, self)
             chart_canvas.draw()
-            chart_canvas.get_tk_widget().place(x=980, y=320, width=160, height=112)
+            chart_canvas.get_tk_widget().place(x=1000, y=320, width=140, height=80)
             
         except Exception as e:
-            print(f"Error creating accuracy chart: {e}")
+            print(f"Error creating battery gauge: {e}")
     
-    def add_battery_health_chart(self):
-        """Add battery health line graph"""
+    def add_performance_meter(self):
+        """Add performance meter instead of line chart"""
         try:
-            # Battery history (simulate recent values)
-            battery_history = [min(100, self.battery_percentage + i) for i in range(-9, 1)]
-            time_points = list(range(len(battery_history)))
+            # Create speedometer-style meter
+            fig, ax = plt.subplots(figsize=(1.4, 1.0))
             
-            # Create battery health chart
-            fig, ax = plt.subplots(figsize=(2.0, 1.2))
-            ax.plot(time_points, battery_history, marker='s', linewidth=2, 
-                   color='#4ECDC4', markersize=3)
-            ax.set_ylabel('Battery %', fontsize=8)
-            ax.set_ylim(0, 100)
-            ax.grid(True, alpha=0.3)
-            ax.tick_params(axis='both', which='major', labelsize=7)
+            # Performance score based on alert accuracy and battery
+            performance_score = (self.alert_accuracy + self.battery_percentage) / 2
+            
+            # Color based on performance
+            perf_color = '#44FF44' if performance_score > 75 else '#FFAA44' if performance_score > 50 else '#FF4444'
+            
+            # Simple bar meter
+            ax.barh(0, performance_score, height=0.4, color=perf_color, alpha=0.8)
+            ax.barh(0, 100, height=0.4, color='lightgray', alpha=0.3)
+            
+            ax.set_xlim(0, 100)
+            ax.set_ylim(-0.5, 0.5)
+            ax.set_xticks([0, 50, 100])
+            ax.set_xticklabels(['Low', 'Med', 'High'], fontsize=7)
+            ax.set_yticks([])
+            
             fig.patch.set_facecolor('none')
             ax.set_facecolor('none')
             
-            # Color code based on battery level
-            if self.battery_percentage < 20:
-                ax.plot(time_points, battery_history, color='#FF4444')
-            elif self.battery_percentage < 50:
-                ax.plot(time_points, battery_history, color='#FFAA44')
-            
-            # Embed in tkinter
+            # Position to fit in background
             chart_canvas = FigureCanvasTkAgg(fig, self)
             chart_canvas.draw()
-            chart_canvas.get_tk_widget().place(x=980, y=520, width=160, height=96)
+            chart_canvas.get_tk_widget().place(x=1000, y=520, width=140, height=80)
             
         except Exception as e:
-            print(f"Error creating battery health chart: {e}")
+            print(f"Error creating performance meter: {e}")
     
-    def add_view_all_button(self):
-        """Enhanced View All button with notification count"""
+    def add_single_view_all_button(self):
+        """Single View All button ONLY"""
         view_all_btn = tk.Button(
             self,
-            text="View All Alerts",
+            text="View All",
             fg="#1657FF",
             bd=0,
-            font=("Arial", 11, "bold"),
+            font=("Arial", 11),
             cursor="hand2",
             command=self.view_all_notifications
         )
-        view_all_btn.place(x=743, y=336)
+        view_all_btn.place(x=763, y=336)
     
     def view_all_notifications(self):
         """Mark notifications as read and go to alerts page"""
-        # Mark all notifications as read
         for notification in self.notifications:
             notification["read"] = True
         self.unread_count = 0
-        
-        # Go to alerts page
         self.controller.show_page('Alerts')
     
     def increment_logout_count(self):
         """Increment logout counter"""
         self.logout_count += 1
-        self.add_notification(f"User session ended (#{self.logout_count})")
         print(f"User logout count: {self.logout_count}")
 
 
-# Enhanced fake sensor with more realistic patterns
+# Realistic fake sensor with MUCH less frequent updates
 class FakeSensorForTesting:
     def __init__(self):
         self.battery = 85
         self.status_cycle = 0
         self.alert_count = 0
-        self.states = ["Alert", "Alert", "Alert", "Awake", "Tired", "Drowsy"]  # Weighted toward alert
+        self.current_state = "Alert"
         
     def get_drowsiness_level(self):
-        # Cycle through states more realistically
+        # Change state much less frequently
         self.status_cycle += 1
-        if self.status_cycle % 20 == 0:  # Change state every 40 seconds (20 * 2-second updates)
-            return random.choice(["Drowsy", "Tired"])
-        elif self.status_cycle % 10 == 0:  # Change to awake occasionally
-            return "Awake"
+        
+        if self.status_cycle % 40 == 0:  # Every 2 minutes
+            self.current_state = random.choice(["Drowsy", "Tired"])
+        elif self.status_cycle % 20 == 0:  # Every 1 minute
+            self.current_state = "Awake"
         else:
-            return "Alert"  # Mostly alert
+            self.current_state = "Alert"  # Most of the time
+            
+        return self.current_state
         
     def get_battery_level(self):
-        self.battery -= random.uniform(0.05, 0.15)  # More realistic battery drain
+        self.battery -= random.uniform(0.02, 0.05)  # Very slow drain
         if self.battery < 15:
-            self.battery = random.randint(80, 100)  # Simulate recharging
+            self.battery = random.randint(85, 95)
         return int(self.battery)
     
     def get_new_alerts(self):
-        # Create alerts when drowsy state is detected
-        current_state = self.get_drowsiness_level()
-        if current_state in ["Drowsy", "Tired"] and random.randint(1, 10) == 1:
+        # Create alerts much less frequently
+        if self.current_state == "Drowsy" and random.randint(1, 30) == 1:  # Very rare
             self.alert_count += 1
             return [{
                 "title": f"Drowsiness Alert #{self.alert_count:03d}",
                 "username": "TestUser",
-                "condition": f"{current_state} state detected during simulation",
-                "action": "Alert notification sent to dashboard",
-                "response": "Monitoring user response",
+                "condition": f"{self.current_state} state detected",
+                "action": "System alert triggered",
+                "response": "Monitoring response",
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M")
             }]
         return []
