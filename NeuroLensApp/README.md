@@ -269,10 +269,3 @@ For support or questions, please open an issue on GitHub.
 
 text
 
-This README:
-1. **Honestly addresses current design issues** in the "Known Issues" section
-2. **Shows what's working** vs what needs improvement
-3. **Provides clear installation instructions**
-4. **Sets expectations** for hardware integration
-5. **Includes troubleshooting guidance**
-6. **Has professional branding** with badges and structure
